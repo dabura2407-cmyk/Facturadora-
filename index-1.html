@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FacturaMX — CFDI 4.0</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#17202a;--muted:#667085;--primary:#1456d9;--border:#dfe3e8;--ok:#16834b;--danger:#c62828}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--ink)}
+header{background:#102a43;color:#fff;padding:18px 5%;display:flex;justify-content:space-between;align-items:center;gap:20px}
+header h1{margin:0;font-size:22px}header span{font-size:13px;opacity:.8}
+main{max-width:1250px;margin:25px auto;padding:0 18px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.card{grid-column:span 12;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 2px 8px #00000008}
+.half{grid-column:span 6}.third{grid-column:span 4}
+h2{font-size:17px;margin:0 0 16px}.row{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.field{grid-column:span 3}.field.wide{grid-column:span 6}.field.full{grid-column:span 12}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#344054}input,select{width:100%;padding:10px;border:1px solid #cfd5dc;border-radius:8px;background:#fff;font:inherit}input:focus,select:focus{outline:2px solid #b9d0ff;border-color:var(--primary)}
+button{border:0;border-radius:8px;padding:11px 16px;font-weight:700;cursor:pointer}.primary{background:var(--primary);color:white}.secondary{background:#e9eef6;color:#17324d}.danger{background:#fee4e2;color:var(--danger)}.actions{display:flex;gap:10px;flex-wrap:wrap}
+button:disabled{opacity:.5;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border-bottom:1px solid var(--border);padding:9px;text-align:left;font-size:13px}th{background:#f8fafc}.num{text-align:right}.summary{max-width:420px;margin-left:auto}.summary div{display:flex;justify-content:space-between;padding:6px}.total{font-size:18px;font-weight:800;border-top:2px solid var(--ink);margin-top:6px}
+.status{padding:12px;border-radius:8px;background:#eef7f1;color:var(--ok);font-weight:700}.warning{background:#fff7e6;color:#8a5b00}
+.preview{background:white;border:1px dashed #aab2bd;padding:25px;min-height:260px}.preview h3{margin-top:0}.small{font-size:12px;color:var(--muted)}
+.notice{background:#fff1f0;border:1px solid #ffccc7;color:#a8071a;border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.5}
+.notice b{display:block;margin-bottom:4px}
+#qrBox{position:absolute;left:-9999px;top:-9999px}
+@media(max-width:800px){.half,.third,.field,.field.wide{grid-column:span 12}header{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><div><h1>FacturaMX</h1><span>Sistema web de facturación — CFDI 4.0</span></div><span id="mode">Modo demostración</span></header>
+<main>
+<div class="grid">
+
+<section class="card">
+<div class="notice"><b>Aviso importante</b>
+Esta herramienta genera una <b>representación impresa (PDF)</b> de la factura y un folio de verificación interno con código QR. No sustituye el timbrado fiscal ante el SAT. Este documento NO incluye Sello Digital del SAT ni Cadena Original del Complemento de Certificación Digital, ya que esos elementos solo pueden generarse mediante un Certificado de Sello Digital (CSD) válido y un Proveedor Autorizado de Certificación (PAC). Para uso fiscal real se requiere backend, CSD y timbrado ante un PAC.</div>
+</section>
+
+<section class="card half"><h2>1. Datos del emisor</h2><div class="row">
+<div class="field"><label>RFC *</label><input id="emisorRFC" maxlength="13" placeholder="XAXX010101000"></div>
+<div class="field wide"><label>Nombre / razón social *</label><input id="emisorNombre" placeholder="NOMBRE DEL EMISOR"></div>
+<div class="field"><label>Régimen fiscal *</label><select id="emisorReg"><option value="">Seleccionar</option><option value="601">601 — General de Ley Personas Morales</option><option value="612">612 — Personas Físicas con Actividades Empresariales y Profesionales</option><option value="626">626 — Régimen Simplificado de Confianza</option></select></div>
+<div class="field"><label>C.P. expedición *</label><input id="emisorCP" maxlength="5" placeholder="42000"></div>
+</div></section>
+
+<section class="card half"><h2>2. Datos del receptor</h2><div class="row">
+<div class="field"><label>RFC *</label><input id="receptorRFC" maxlength="13" placeholder="XAXX010101000"></div>
+<div class="field wide"><label>Nombre / razón social *</label><input id="receptorNombre" placeholder="NOMBRE DEL RECEPTOR"></div>
+<div class="field"><label>C.P. fiscal *</label><input id="receptorCP" maxlength="5" placeholder="42000"></div>
+<div class="field"><label>Régimen fiscal *</label><select id="receptorReg"><option value="">Seleccionar</option><option value="601">601 — General de Ley Personas Morales</option><option value="605">605 — Sueldos y Salarios</option><option value="612">612 — Personas Físicas con Actividades Empresariales y Profesionales</option><option value="626">626 — Régimen Simplificado de Confianza</option></select></div>
+<div class="field"><label>Uso CFDI *</label><select id="uso"><option value="">Seleccionar</option><option value="G01">G01 — Adquisición de mercancías</option><option value="G03">G03 — Gastos en general</option><option value="D01">D01 — Honorarios médicos, dentales y gastos hospitalarios</option><option value="S01">S01 — Sin efectos fiscales</option></select></div>
+</div></section>
+
+<section class="card"><h2>3. Comprobante</h2><div class="row">
+<div class="field"><label>Tipo de comprobante *</label><select id="tipo"><option value="I">I — Ingreso</option><option value="E">E — Egreso</option><option value="T">T — Traslado</option></select></div>
+<div class="field"><label>Serie</label><input id="serie" maxlength="25" value="A"></div>
+<div class="field"><label>Folio</label><input id="folio" maxlength="40" value="1"></div>
+<div class="field"><label>Moneda *</label><select id="moneda"><option value="MXN">MXN — Peso Mexicano</option><option value="USD">USD — Dólar estadounidense</option></select></div>
+<div class="field"><label>Forma de pago *</label><select id="forma"><option value="">Seleccionar</option><option value="01">01 — Efectivo</option><option value="02">02 — Cheque nominativo</option><option value="03">03 — Transferencia electrónica de fondos</option><option value="04">04 — Tarjeta de crédito</option><option value="28">28 — Tarjeta de débito</option><option value="99">99 — Por definir</option></select></div>
+<div class="field"><label>Método de pago *</label><select id="metodo"><option value="">Seleccionar</option><option value="PUE">PUE — Pago en una sola exhibición</option><option value="PPD">PPD — Pago en parcialidades o diferido</option></select></div>
+</div></section>
+
+<section class="card"><h2>4. Conceptos</h2><div class="actions"><button class="primary" onclick="addConcepto()">+ Agregar concepto</button></div>
+<table id="tabla"><thead><tr><th>Clave SAT</th><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Valor unitario</th><th>IVA</th><th class="num">Importe</th><th></th></tr></thead><tbody></tbody></table>
+<div class="summary"><div><span>Subtotal</span><strong id="subtotal">$0.00</strong></div><div><span>IVA 16%</span><strong id="iva">$0.00</strong></div><div class="total"><span>Total</span><strong id="total">$0.00</strong></div></div>
+</section>
+
+<section class="card half"><h2>5. Validación</h2><div id="estado" class="status">Listo para capturar datos.</div><p class="small">Las validaciones de esta versión son preventivas. El timbrado fiscal real requiere backend, CSD y un proceso de certificación.</p></section>
+
+<section class="card half"><h2>6. Acciones</h2><div class="actions">
+<button class="primary" onclick="validar()">Validar CFDI</button>
+<button class="secondary" onclick="vistaPrevia()">Vista previa</button>
+<button class="primary" id="btnPdf" onclick="generarPDF()">Generar PDF</button>
+<button class="secondary" onclick="guardarJSON()">Guardar borrador</button>
+<button class="danger" onclick="limpiar()">Limpiar</button>
+</div>
+<p class="small" style="margin-top:10px">El PDF incluye un código QR con los datos de la factura y un folio de verificación interno (hash SHA-256), no un sello fiscal del SAT.</p>
+</section>
+
+<section class="card" id="preview" style="display:none"><h2>Vista previa</h2><div class="preview" id="previewContent"></div></section>
+
+<div id="qrBox"></div>
+</div>
+</main>
+<script>
+const tbody=document.querySelector('#tabla tbody');
+function money(n){return n.toLocaleString('es-MX',{style:'currency',currency:'MXN'})}
+function addConcepto(data={}){const tr=document.createElement('tr');tr.innerHTML=`
+<td><input class="clave" maxlength="8" value="${data.clave||''}" placeholder="01010101"></td>
+<td><input class="desc" value="${data.desc||''}" placeholder="Descripción"></td>
+<td><input class="unidad" value="${data.unidad||'H87'}" maxlength="10"></td>
+<td><input class="cant" type="number" min="0.000001" step="0.000001" value="${data.cant||1}"></td>
+<td><input class="precio" type="number" min="0" step="0.01" value="${data.precio||0}"></td>
+<td><input class="tax" type="number" min="0" max="100" step=".01" value="${data.tax??16}"></td>
+<td class="num importe">$0.00</td><td><button class="danger" onclick="this.closest('tr').remove();calcular()">×</button></td>`;
+tbody.appendChild(tr);tr.querySelectorAll('input').forEach(x=>x.addEventListener('input',calcular));calcular()}
+function calcular(){let sub=0,iva=0;tbody.querySelectorAll('tr').forEach(tr=>{let c=+tr.querySelector('.cant').value||0,p=+tr.querySelector('.precio').value||0,t=+tr.querySelector('.tax').value||0,i=round2(c*p);sub+=i;iva+=round2(i*t/100);tr.querySelector('.importe').textContent=money(i)});sub=round2(sub);iva=round2(iva);document.querySelector('#subtotal').textContent=money(sub);document.querySelector('#iva').textContent=money(iva);document.querySelector('#total').textContent=money(sub+iva);return{sub,iva,total:round2(sub+iva)}}
+function round2(n){return Math.round((n+Number.EPSILON)*100)/100}
+function required(id){return document.getElementById(id).value.trim()}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function validar(){let errs=[];['emisorRFC','emisorNombre','emisorReg','emisorCP','receptorRFC','receptorNombre','receptorCP','receptorReg','uso','forma','metodo'].forEach(id=>{if(!required(id))errs.push(id)});if(!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(required('emisorRFC').toUpperCase()))errs.push('RFC emisor');if(!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(required('receptorRFC').toUpperCase()))errs.push('RFC receptor');if(!/^\d{5}$/.test(required('emisorCP'))||!/^\d{5}$/.test(required('receptorCP')))errs.push('Código postal');if(!tbody.children.length)errs.push('conceptos');
+tbody.querySelectorAll('tr').forEach((tr,i)=>{if(!tr.querySelector('.desc').value.trim())errs.push('descripción concepto '+(i+1));if(!/^\d{8}$/.test(tr.querySelector('.clave').value.trim()))errs.push('clave SAT concepto '+(i+1))});
+let e=document.querySelector('#estado');if(errs.length){e.className='status warning';e.textContent='Faltan o son inválidos: '+errs.join(', ')+'.'}else{e.className='status';e.textContent='Validación preventiva correcta. El CFDI todavía no está timbrado.'}return !errs.length}
+function collect(){let calc=calcular();return{version:'4.0',emisor:{rfc:required('emisorRFC').toUpperCase(),nombre:required('emisorNombre').toUpperCase(),regimen:required('emisorReg'),cp:required('emisorCP')},receptor:{rfc:required('receptorRFC').toUpperCase(),nombre:required('receptorNombre').toUpperCase(),cp:required('receptorCP'),regimen:required('receptorReg'),uso:required('uso')},comprobante:{tipo:required('tipo'),serie:required('serie'),folio:required('folio'),moneda:required('moneda'),forma:required('forma'),metodo:required('metodo'),fecha:new Date().toISOString()},conceptos:[...tbody.children].map(tr=>({clave:tr.querySelector('.clave').value,descripcion:tr.querySelector('.desc').value,unidad:tr.querySelector('.unidad').value,cantidad:+tr.querySelector('.cant').value,valorUnitario:+tr.querySelector('.precio').value,iva:+tr.querySelector('.tax').value})),totales:calc}}
+function vistaPrevia(){let d=collect();document.querySelector('#preview').style.display='block';document.querySelector('#previewContent').innerHTML=`<h3>FACTURA ${escapeHTML(d.comprobante.serie)}-${escapeHTML(d.comprobante.folio)}</h3><p><b>CFDI:</b> ${d.version} · <b>Tipo:</b> ${escapeHTML(d.comprobante.tipo)}</p><p><b>Emisor:</b> ${escapeHTML(d.emisor.nombre)} (${escapeHTML(d.emisor.rfc)})</p><p><b>Receptor:</b> ${escapeHTML(d.receptor.nombre)} (${escapeHTML(d.receptor.rfc)})</p><hr><p><b>Subtotal:</b> ${money(d.totales.sub)} &nbsp; <b>IVA:</b> ${money(d.totales.iva)} &nbsp; <b>Total:</b> ${money(d.totales.total)}</p><p class="small">REPRESENTACIÓN PREVIA — SIN VALIDEZ FISCAL HASTA CONTAR CON TIMBRADO.</p>`}
+function guardarJSON(){let blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cfdi-borrador.json';a.click();URL.revokeObjectURL(a.href)}
+function limpiar(){if(confirm('¿Limpiar todos los datos?'))location.reload()}
+
+// --- Folio de verificación interno (hash SHA-256, NO es sello fiscal del SAT) ---
+async function sha256Hex(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// --- Datos que se codifican en el QR: únicamente datos de la factura, en texto plano ---
+function datosQR(d,folioVerificacion){
+  return [
+    'FacturaMX - Representación no fiscal',
+    'Emisor RFC: '+d.emisor.rfc,
+    'Receptor RFC: '+d.receptor.rfc,
+    'Serie-Folio: '+d.comprobante.serie+'-'+d.comprobante.folio,
+    'Fecha: '+d.comprobante.fecha,
+    'Subtotal: '+d.totales.sub.toFixed(2),
+    'IVA: '+d.totales.iva.toFixed(2),
+    'Total: '+d.totales.total.toFixed(2),
+    'Moneda: '+d.comprobante.moneda,
+    'Folio de verificación interno: '+folioVerificacion
+  ].join('\n');
+}
+
+function generarQRDataURL(texto){
+  return new Promise((resolve,reject)=>{
+    const box=document.querySelector('#qrBox');
+    box.innerHTML='';
+    try{
+      new QRCode(box,{text:texto,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+    }catch(err){reject(err);return}
+    setTimeout(()=>{
+      const canvas=box.querySelector('canvas');
+      const img=box.querySelector('img');
+      if(canvas)resolve(canvas.toDataURL('image/png'));
+      else if(img&&img.src)resolve(img.src);
+      else reject(new Error('No se pudo generar el QR'));
+    },80);
+  });
+}
+
+async function generarPDF(){
+  if(!validar()){alert('Corrige los campos marcados en Validación antes de generar el PDF.');return}
+  const btn=document.querySelector('#btnPdf');btn.disabled=true;btn.textContent='Generando...';
+  try{
+    const d=collect();
+    const folioVerificacion=(await sha256Hex(JSON.stringify(d))).slice(0,16).toUpperCase();
+    const qrDataURL=await generarQRDataURL(datosQR(d,folioVerificacion));
+
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'mm',format:'letter'});
+    const pageW=doc.internal.pageSize.getWidth();
+    let y=15;
+
+    doc.setFillColor(16,42,67);doc.rect(0,0,pageW,22,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont(undefined,'bold');
+    doc.text('FacturaMX',10,13);
+    doc.setFontSize(9);doc.setFont(undefined,'normal');
+    doc.text('Representación impresa — CFDI '+d.version,10,19);
+    y=30;
+
+    doc.setTextColor(20,20,20);
+    doc.setFontSize(12);doc.setFont(undefined,'bold');
+    doc.text('Factura '+d.comprobante.serie+'-'+d.comprobante.folio,10,y);y+=6;
+    doc.setFontSize(9);doc.setFont(undefined,'normal');
+    doc.text('Tipo: '+d.comprobante.tipo+'   Moneda: '+d.comprobante.moneda+'   Forma de pago: '+d.comprobante.forma+'   Método de pago: '+d.comprobante.metodo,10,y);y+=5;
+    doc.text('Fecha de emisión (representación): '+new Date(d.comprobante.fecha).toLocaleString('es-MX'),10,y);y+=8;
+
+    doc.setFont(undefined,'bold');doc.text('Emisor',10,y);doc.text('Receptor',110,y);y+=5;
+    doc.setFont(undefined,'normal');
+    doc.text(doc.splitTextToSize(d.emisor.nombre,90),10,y);
+    doc.text(doc.splitTextToSize(d.receptor.nombre,90),110,y);y+=5;
+    doc.text('RFC: '+d.emisor.rfc,10,y);doc.text('RFC: '+d.receptor.rfc,110,y);y+=5;
+    doc.text('CP: '+d.emisor.cp+'   Régimen: '+d.emisor.regimen,10,y);
+    doc.text('CP: '+d.receptor.cp+'   Régimen: '+d.receptor.regimen,110,y);y+=5;
+    doc.text('Uso CFDI: '+d.receptor.uso,110,y);y+=9;
+
+    doc.setFont(undefined,'bold');doc.setFontSize(10);doc.text('Conceptos',10,y);y+=5;
+    const headers=[['Clave','Descripción','Unidad','Cant.','V. Unitario','IVA %','Importe']];
+    const rows=d.conceptos.map(c=>[c.clave,c.descripcion,c.unidad,String(c.cantidad),c.valorUnitario.toFixed(2),c.iva+'%',(c.cantidad*c.valorUnitario).toFixed(2)]);
+    if(doc.autoTable){
+      doc.autoTable({startY:y,head:headers,body:rows,styles:{fontSize:8},headStyles:{fillColor:[16,42,67]}});
+      y=doc.lastAutoTable.finalY+8;
+    }else{
+      doc.setFont(undefined,'normal');doc.setFontSize(8);
+      rows.forEach(r=>{doc.text(r.join(' | '),10,y);y+=5});
+      y+=5;
+    }
+
+    doc.setFontSize(10);doc.setFont(undefined,'normal');
+    doc.text('Subtotal: '+money(d.totales.sub),140,y);y+=5;
+    doc.text('IVA: '+money(d.totales.iva),140,y);y+=5;
+    doc.setFont(undefined,'bold');
+    doc.text('Total: '+money(d.totales.total),140,y);y+=10;
+
+    doc.addImage(qrDataURL,'PNG',10,y,32,32);
+    doc.setFont(undefined,'normal');doc.setFontSize(8);
+    doc.text('Escanea el código para ver los datos de esta factura.',46,y+8);
+    doc.text('Folio de verificación interno: '+folioVerificacion,46,y+14);
+    doc.text('(hash SHA-256 del contenido, no es un sello digital del SAT)',46,y+19);
+    y+=40;
+
+    doc.setDrawColor(200,50,50);doc.setLineWidth(0.3);doc.rect(10,y,pageW-20,16);
+    doc.setTextColor(168,7,26);doc.setFontSize(8);doc.setFont(undefined,'bold');
+    doc.text('ESTE DOCUMENTO ES UNA REPRESENTACIÓN IMPRESA SIN VALIDEZ FISCAL.',13,y+6);
+    doc.setFont(undefined,'normal');
+    doc.text('No incluye Sello Digital del SAT ni Cadena Original del Complemento de Certificación. No ha sido timbrado ante un PAC.',13,y+11);
+
+    doc.save('factura-'+d.comprobante.serie+'-'+d.comprobante.folio+'.pdf');
+  }catch(err){
+    console.error(err);
+    alert('Ocurrió un error al generar el PDF: '+err.message);
+  }finally{
+    btn.disabled=false;btn.textContent='Generar PDF';
+  }
+}
+
+addConcepto();
+</script>
+</body></html>
